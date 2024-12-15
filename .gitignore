@@ -1,0 +1,12 @@
+*/.ipynb_checkpoints
+*/__pycache__
+*.pyc
+.vscode
+LOGS/
+logs
+logs/*
+best_model.pth
+.ipynb_checkpoints/*
+*/.ipynb_checkpoints/*
+cache
+cache/*
