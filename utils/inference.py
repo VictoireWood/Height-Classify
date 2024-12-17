@@ -5,6 +5,8 @@ import numpy as np
 from torch.utils.data import DataLoader
 from models.classifiers.classifiers import LinearLayer
 
+import pandas as pd
+
 from hc_db_cut import h_max, h_min, class_interval, classes_centers, classes_num
 
 LR_N = [1, 2, 3]
@@ -248,3 +250,50 @@ def inference_with_groups_with_val(args, model:torch.nn.Module, classifiers, tes
     gcd_str = f"set the threshold to {threshold}m, " + ", ".join([f'LR@{N}: {acc:.1f}' for N, acc in zip(LR_N, lr_ns)])
     
     return correct_classes_str, gcd_str, lr_ns[0]
+
+def inference_with_groups_csv(args, model:torch.nn.Module, classifiers, test_dl:DataLoader, groups, num_test_images):
+    # CSV文件中记录实际高度、推测高度、实际utm，需要结合原始图像信息进行推测
+
+    
+    
+    model = model.eval()
+    classifiers = [c.to(args.device) for c in classifiers]
+    valid_distances = torch.zeros(num_test_images, max(LR_N))
+    pred_class_ids_collection = torch.zeros(num_test_images, max(LR_N))
+    query_class_ids_collection = torch.zeros(num_test_images, 1)
+
+
+    all_preds_heights_centers = [center for group in groups for center in group.class_centers]
+    all_preds_heights_centers = torch.tensor(all_preds_heights_centers).to(args.device)
+    all_preds_class_id = [class_id for group in groups for class_id in group.classes_ids]
+    all_preds_class_id = torch.tensor(all_preds_class_id).to(args.device)
+    
+    with torch.no_grad():
+        # query_class are the UTMs of the center of the class to which the query belongs
+        for query_i, (images, query_class_ids, query_heights) in enumerate(tqdm(test_dl, ncols=100)):
+            query_class_ids_collection[query_i,:] = query_class_ids
+            images = images.to(args.device) # 设置batch_size=1的时候实际上一次循环只有一张图
+            query_heights = torch.tensor(query_heights).to(args.device)
+            descriptors = model(images)
+            
+            all_preds_confidences = torch.zeros([0], device=args.device)
+            for i in range(len(classifiers)):
+                pred = compute_pred(classifiers[i], descriptors)
+                assert pred.shape[0] == 1  # pred has shape==[1, num_classes]
+                all_preds_confidences = torch.cat([all_preds_confidences, pred[0]])
+            
+                
+            # topn_pred_class_id_idx = all_preds_confidences.argsort(descending=True)[:max(LR_N)]
+            # topn_pred_class_id = all_preds_heights_centers[topn_pred_class_id_idx]
+            top_to_low_pred_class_id_idx = all_preds_confidences.argsort(descending=True)
+            pred_class_centers = all_preds_heights_centers[top_to_low_pred_class_id_idx]
+            pred_class_ids = all_preds_class_id[top_to_low_pred_class_id_idx]
+
+            topn_pred_class_id = pred_class_ids[0:max(LR_N)]
+            topn_pred_class_centers = pred_class_centers[0:max(LR_N)]
+            
+            dist = torch.abs(topn_pred_class_centers.to(torch.float64) - query_heights)
+            valid_distances[query_i] = dist
+
+            query_class_ids_collection[query_i] = query_class_ids
+            pred_class_ids_collection[query_i] = topn_pred_class_id

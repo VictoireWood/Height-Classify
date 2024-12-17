@@ -671,4 +671,60 @@ class realHCDataset_N(Dataset):
         return len(self.images_paths)
     
 
-    
+class TestDataset_csv(torch.utils.data.Dataset):
+    def __init__(self, test_folder, test_datasets, M=10, N=5, image_size=256):
+        super().__init__()
+        logging.debug(f"Searching test images in {test_folder}")
+
+        # images_paths = sorted(glob(f"{test_folder}/**/*.jpg", recursive=True))    # ORIGION
+        images_paths = []
+        for dataset in test_datasets:
+            images_paths_current_folder = sorted(glob(f"{test_folder}/{dataset}**/*.png", recursive=True))    # EDIT
+            images_paths.extend(images_paths_current_folder)
+
+        logging.debug(f"Found {len(images_paths)} images")
+
+        header = pd.DataFrame(columns=['query_path', 'query_height', 'pred_height', 'query_utm', 'pred_utm'])
+
+        self.heights = get_heights_from_paths(images_paths)
+
+        for i in range(len(self.heights)):
+            query_path = images_paths[i]
+            query_height = self.heights[i]
+            pred_height = query_height
+            query_utm = (query_path)
+            pred_utm = query_utm
+            header.loc[i] = [query_path, query_height, pred_height, query_utm, pred_utm]
+
+        class_id_group_id = [get__class_id__group_id(h, M, N) for h in self.heights]    # 得到(class_id, group_id)
+        self.images_paths = images_paths
+        self.class_centers = [id[0] + M // 2 for id in class_id_group_id]
+        self.class_id = [id[0] for id in class_id_group_id]
+        self.group_id = [id[1] for id in class_id_group_id]
+
+        self.normalize = T.Compose([
+            T.Resize(image_size),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        self.fft = args.fft
+        self.fft_log_base = args.fft_log_base
+
+    def __getitem__(self, index):
+        image_path = self.images_paths[index]
+        # class_id = self.class_id[index]
+
+        pil_image = Image.open(image_path).convert('RGB')
+        # pil_image = T.functional.resize(pil_image, self.shapes[index])
+        image = self.normalize(pil_image)
+
+        if self.fft:
+            image = tensor_fft_3D(image, self.fft_log_base)
+        
+        # if isinstance(image, tuple):
+        #     image = torch.stack(image, dim=0)
+        return image, self.class_id[index], self.heights[index]
+
+    def __len__(self):
+        return len(self.images_paths)

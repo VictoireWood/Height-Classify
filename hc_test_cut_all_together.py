@@ -277,6 +277,8 @@ def generate_map_tiles(raw_map_path:str, patches_save_dir:str, rotation_angles=[
         tbar.set_postfix(rate=i/len(flight_heights))
         tbar.update()
 
+        # TODO 这里应该参考UAV-Divide-Classify的方法，使用while，然后这里的tbar更新放在else的条件下
+
 
             #     loc_y = loc_y + stride_y
 

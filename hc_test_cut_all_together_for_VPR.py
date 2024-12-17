@@ -147,139 +147,151 @@ def generate_map_tiles(raw_map_path:str, patches_save_dir:str, rotation_angles=[
     # map_tile_heigth_meters = map_tile_width_meters * w_h_factor
 
     tbar = trange(total_iterations)
-    for flight_height in flight_heights:
+    n = 0
+    # for flight_height in flight_heights:
+    for n in tbar:     
+        i = 0
+        while i < 1:
     # 对应地面宽高（像素为单位）
     #LINK: https://cameraharmony.com/wp-content/uploads/2020/03/focal-length-graphic-1-2048x1078.png
 
-        flight_class = (flight_height - h_min) // class_interval
+            flight_height = random.randint(h_min, h_max-1)
 
-        map_tile_meters_w = resolution_w / focal_length * flight_height   # 相机内参矩阵里focal_length的单位是像素
-        map_tile_meters_h = resolution_h / focal_length * flight_height # NOTE w768*h576
+            flight_class = (flight_height - h_min) // class_interval
 
-        w_h_factor = resolution_w / resolution_h
-        target_h = round(target_w / w_h_factor)         # NOTE 最后要resize的高度(h360,w480)
+            map_tile_meters_w = resolution_w / focal_length * flight_height   # 相机内参矩阵里focal_length的单位是像素
+            map_tile_meters_h = resolution_h / focal_length * flight_height # NOTE w768*h576
 
-        map_data = cv2.imread(raw_map_path)
+            w_h_factor = resolution_w / resolution_h
+            target_h = round(target_w / w_h_factor)         # NOTE 最后要resize的高度(h360,w480)
 
-        map_w = map_data.shape[1]   # 大地图像素宽度
-        map_h = map_data.shape[0]   # 大地图像素高度
+            map_data = cv2.imread(raw_map_path)
 
-        gnss_data = raw_map_path.split(slash)[-1]
+            map_w = map_data.shape[1]   # 大地图像素宽度
+            map_h = map_data.shape[0]   # 大地图像素高度
 
-        LT_lon = float(gnss_data.split('@')[2]) # left top 左上
-        LT_lat = float(gnss_data.split('@')[3])
-        RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
-        RB_lat = float(gnss_data.split('@')[5])
+            gnss_data = raw_map_path.split(slash)[-1]
 
-        lon_res = (RB_lon - LT_lon) / map_w     # 大地图的纬线方向每像素代表的经度跨度
-        lat_res = (RB_lat - LT_lat) / map_h     # 大地图的经线方向每像素代表的纬度跨度
+            LT_lon = float(gnss_data.split('@')[2]) # left top 左上
+            LT_lat = float(gnss_data.split('@')[3])
+            RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
+            RB_lat = float(gnss_data.split('@')[5])
 
-        # map_width_meters = abs(LT_e - RB_e)
-        # map_height_meters = abs(LT_n - RB_n)
+            lon_res = (RB_lon - LT_lon) / map_w     # 大地图的纬线方向每像素代表的经度跨度
+            lat_res = (RB_lat - LT_lat) / map_h     # 大地图的经线方向每像素代表的纬度跨度
 
-        mid_lat = (LT_lat + RB_lat) / 2
-        mid_lon = (LT_lon + RB_lon) / 2
+            # map_width_meters = abs(LT_e - RB_e)
+            # map_height_meters = abs(LT_n - RB_n)
 
-        map_width_meters = haversine((mid_lat, LT_lon), (mid_lat, RB_lon), unit=Unit.METERS)
-        map_height_meters = haversine((LT_lat, mid_lon), (RB_lat, mid_lon), unit=Unit.METERS)
-        pixel_per_meter_factor = ((map_w / map_width_meters) + (map_h / map_height_meters)) / 2     # 得出来是像素/米，每米对应多少像素
+            mid_lat = (LT_lat + RB_lat) / 2
+            mid_lon = (LT_lon + RB_lon) / 2
 
-        pixel_per_meter_factor = ((map_w / map_width_meters) + (map_h / map_height_meters)) / 2     # 得出来是像素/米，每米对应多少像素
+            map_width_meters = haversine((mid_lat, LT_lon), (mid_lat, RB_lon), unit=Unit.METERS)
+            map_height_meters = haversine((LT_lat, mid_lon), (RB_lat, mid_lon), unit=Unit.METERS)
+            pixel_per_meter_factor = ((map_w / map_width_meters) + (map_h / map_height_meters)) / 2     # 得出来是像素/米，每米对应多少像素
 
-        # stride_x = round(pixel_per_meter_factor * map_tile_meters_w * stride_ratio)
-        # stride_y = round(pixel_per_meter_factor * map_tile_meters_h * stride_ratio)
+            pixel_per_meter_factor = ((map_w / map_width_meters) + (map_h / map_height_meters)) / 2     # 得出来是像素/米，每米对应多少像素
 
-        img_w = round(pixel_per_meter_factor * map_tile_meters_w)
-        img_h = round(pixel_per_meter_factor * map_tile_meters_h)
+            # stride_x = round(pixel_per_meter_factor * map_tile_meters_w * stride_ratio)
+            # stride_y = round(pixel_per_meter_factor * map_tile_meters_h * stride_ratio)
 
-        # 计算要切多少个tile
-        # iter_w = int((map_w - img_w) / stride_x) + 1
-        # iter_h = int((map_h - img_h) / stride_y) + 1
-        # iter_total = iter_w * iter_h * len(rotation_angles)
+            img_w = round(pixel_per_meter_factor * map_tile_meters_w)
+            img_h = round(pixel_per_meter_factor * map_tile_meters_h)
 
-        loc_x = random.randint(0, map_w - img_w)
-        loc_y = random.randint(0, map_h - img_h)
+            # 计算要切多少个tile
+            # iter_w = int((map_w - img_w) / stride_x) + 1
+            # iter_h = int((map_h - img_h) / stride_y) + 1
+            # iter_total = iter_w * iter_h * len(rotation_angles)
 
-        # with trange(iter_total, desc=gnss_data) as tbar:
-        #     i = 0
-        #     loc_x = 0
-        #     # LINK: https://blog.csdn.net/winter2121/article/details/111356587
-        #     while loc_x < map_w - img_w:    # 已分割像素宽度<大地图宽度-地图切片宽度
-        #         loc_y = 0
-        #         while loc_y < map_h - img_h:
-        LT_cur_lon = str(loc_x * lon_res + LT_lon)
-        LT_cur_lat = str(loc_y * lat_res + LT_lat)
-        RB_cur_lon = str((loc_x + img_w) * lon_res + LT_lon)
-        RB_cur_lat = str((loc_y + img_h) * lat_res + LT_lat)
-        CT_cur_lon = str((loc_x + img_w / 2) * lon_res + LT_lon)    # centre
-        CT_cur_lat = str((loc_y + img_h / 2) * lat_res + LT_lat)
-        CT_cur_lon_ = (loc_x + img_w / 2) * lon_res + LT_lon    # centre
-        CT_cur_lat_ = (loc_y + img_h / 2) * lat_res + LT_lat
-        # CT_utm_e, CT_utm_n = S51_UTM(CT_cur_lon_, CT_cur_lat_)
-        CT_utm_e, CT_utm_n, _, _ = utm.from_latlon(CT_cur_lat_, CT_cur_lon_)
+            loc_x = random.randint(0, map_w - img_w)
+            loc_y = random.randint(0, map_h - img_h)
 
-        crop_center_x = loc_x + img_w / 2
-        crop_center_y = loc_y + img_h / 2
+            # with trange(iter_total, desc=gnss_data) as tbar:
+            #     i = 0
+            #     loc_x = 0
+            #     # LINK: https://blog.csdn.net/winter2121/article/details/111356587
+            #     while loc_x < map_w - img_w:    # 已分割像素宽度<大地图宽度-地图切片宽度
+            #         loc_y = 0
+            #         while loc_y < map_h - img_h:
+            LT_cur_lon = str(loc_x * lon_res + LT_lon)
+            LT_cur_lat = str(loc_y * lat_res + LT_lat)
+            RB_cur_lon = str((loc_x + img_w) * lon_res + LT_lon)
+            RB_cur_lat = str((loc_y + img_h) * lat_res + LT_lat)
+            CT_cur_lon = str((loc_x + img_w / 2) * lon_res + LT_lon)    # centre
+            CT_cur_lat = str((loc_y + img_h / 2) * lat_res + LT_lat)
+            CT_cur_lon_ = (loc_x + img_w / 2) * lon_res + LT_lon    # centre
+            CT_cur_lat_ = (loc_y + img_h / 2) * lat_res + LT_lat
+            # CT_utm_e, CT_utm_n = S51_UTM(CT_cur_lon_, CT_cur_lat_)
+            CT_utm_e, CT_utm_n, _, _ = utm.from_latlon(CT_cur_lat_, CT_cur_lon_)
 
-        # for rotation_angle in rotation_angles:
+            crop_center_x = loc_x + img_w / 2
+            crop_center_y = loc_y + img_h / 2
 
-            # NOTE 如果不想全部生成
-            # random_cut = bool_based_on_probability(0.4)
-            # if not random_cut:
+            # for rotation_angle in rotation_angles:
+
+                # NOTE 如果不想全部生成
+                # random_cut = bool_based_on_probability(0.4)
+                # if not random_cut:
+                #     i += 1
+                #     tbar.set_postfix(rate=i/iter_total)
+                #     tbar.update()
+                #     continue
+
+            # alpha = 90
+            rotation_angle = random.randint(0, 360-1)
+
+            # filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{rotation_angle:.2f}@{loc_x}@{loc_y}@{rotation_angle}.png'
+
+            # filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{rotation_angle:.2f}@{loc_x}@{loc_y}@{CT_utm_e}@{CT_utm_n}@{rotation_angle}.png'
+
+            filename = f'@{year}@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}.png'
+            # filename = f'@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
+            # @角度@高度@utm_e@utm_n@.png
+
+            # if os.path.exists(filename):
             #     i += 1
-            #     tbar.set_postfix(rate=i/iter_total)
+            #     tbar.set_postfix(rate=i/iter_total, tiles=i)
             #     tbar.update()
             #     continue
 
-        # alpha = 90
-        rotation_angle = random.randint(0, 360)
-
-        filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{rotation_angle:.2f}@{loc_x}@{loc_y}@{rotation_angle}.png'
-        # filename = f'@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
-        # @角度@高度@utm_e@utm_n@.png
-
-        # if os.path.exists(filename):
-        #     i += 1
-        #     tbar.set_postfix(rate=i/iter_total, tiles=i)
-        #     tbar.update()
-        #     continue
-
-        # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
-        # print(img_seg_pad.shape)
-
-        img_seg_pad = crop_rot_img_wo_border(map_data, img_w, img_h, crop_center_x, crop_center_y, rotation_angle)
-
-        if img_seg_pad is None:
-            pass
-        else:
             # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
-            img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+            # print(img_seg_pad.shape)
 
-            # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
-            # data_line.to_csv(csv_path, mode='a', index=False, header=False)
-            
-            # 决定是否要旋转
-            # img_seg_pad = numpy.clip(numpy.rot90(img_seg_pad, 1), 0, 255).astype(numpy.uint8)  # rotate if necessary
+            img_seg_pad = crop_rot_img_wo_border(map_data, img_w, img_h, crop_center_x, crop_center_y, rotation_angle)
 
-            # cv2.imwrite(patches_save_dir + '@map%s.png' % (
-            #         '@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'), img_seg_pad)
-            # print('%s.png' % ('@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'))
-            
+            if img_seg_pad is None:
+                pass
+                continue
+            else:
+                # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
+                img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
 
-            # save_file_path = f'{patches_save_dir}{slash}' + filename
-            save_file_path = os.path.join(patches_save_dir, filename)
+                # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
+                # data_line.to_csv(csv_path, mode='a', index=False, header=False)
+                
+                # 决定是否要旋转
+                # img_seg_pad = numpy.clip(numpy.rot90(img_seg_pad, 1), 0, 255).astype(numpy.uint8)  # rotate if necessary
 
-            cv2.imwrite(save_file_path, img_seg_pad)
-            # cv2.imshow('image',img_seg_pad)
+                # cv2.imwrite(patches_save_dir + '@map%s.png' % (
+                #         '@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'), img_seg_pad)
+                # print('%s.png' % ('@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'))
+                
 
-            i += 1
-            tbar.set_postfix(rate=i/iter_total)
-            tbar.update()
+                # save_file_path = f'{patches_save_dir}{slash}' + filename
+                save_file_path = os.path.join(patches_save_dir, filename)
+
+                cv2.imwrite(save_file_path, img_seg_pad)
+                # cv2.imshow('image',img_seg_pad)
+
+                i = 1
+                n += 1
+                tbar.set_postfix(rate=i/total_iterations)
+                tbar.update()
 
 
-            #     loc_y = loc_y + stride_y
+                #     loc_y = loc_y + stride_y
 
-            # loc_x = loc_x + stride_x
+                # loc_x = loc_x + stride_x
 
         print(f"Finishing {year}-{flight_height}m")  
 
