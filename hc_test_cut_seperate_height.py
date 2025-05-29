@@ -243,7 +243,8 @@ def generate_map_tiles(raw_map_path:str, patches_save_dir:str, rotation_angles=[
             pass
         else:
             # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
-            img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+            # img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+            img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LANCZOS4)
 
             # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
             # data_line.to_csv(csv_path, mode='a', index=False, header=False)
@@ -287,6 +288,10 @@ if __name__ == '__main__':
 
     cities_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/Cities'
 
+    basedir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/QDRaw/'
+
+    cities_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/Cities'
+
     # map_dirs = {
     #     "2012": rf"{basedir}201209{slash}@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",
     #     "2013": rf"{basedir}201310{slash}@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
@@ -299,11 +304,11 @@ if __name__ == '__main__':
         #` "2012": os.path.join(basedir, '201209', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
         # "2013": os.path.join(basedir, '201310', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
         # "2017": os.path.join(basedir, '201710', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
-        "2019": os.path.join(basedir, '201911', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
-        "2020": os.path.join(basedir, '202002', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
-        "2022": os.path.join(basedir, '202202', '@rot90map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
-        "ct01": os.path.join(cities_dir, '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
-        "ct02": os.path.join(cities_dir, '@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
+        # "2019": os.path.join(basedir, '201911', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
+        # "2020": os.path.join(basedir, '202002', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
+        # "2022": os.path.join(basedir, '202202', '@rot90map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
+        "ct01": os.path.join(cities_dir, 'ct01', '2022', '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
+        "ct02": os.path.join(cities_dir, 'ct01', '2022','@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
     }
 
     patches_save_root_dir = r'/root/workspace/maps/HE-100-700-test'
@@ -311,6 +316,7 @@ if __name__ == '__main__':
     patches_save_root_dir = r'F:\.cache\HE-100-700-test'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HE-100-700-test'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-100-700-test'
+    patches_save_root_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/HC-100-700-test'
 
     # alpha_list = range(0, 360, 30)
     alpha_list = [0]

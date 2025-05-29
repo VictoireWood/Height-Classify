@@ -1,1 +1,1 @@
-from .classifiers import AAMC, LinearLayer, LMCC
+from .classifiers import AAMC, LinearLayer, LMCC, QAMC

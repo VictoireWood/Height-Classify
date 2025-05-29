@@ -7,6 +7,7 @@ from pickle import FALSE
 import haversine
 from haversine import haversine, Unit
 import numpy
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = pow(2,40).__str__()
 import cv2
 from fractions import Fraction
 from tqdm import tqdm, trange
@@ -34,7 +35,8 @@ flight_heights.sort()   # 从小到大排序
 # TODO: 
 # 分辨率
 resolution_w = 2048
-resolution_h = 1536
+# resolution_h = 1536
+resolution_h = 1366
 # 焦距
 focal_length = 1200  # TODO: the intrinsics of the camera
 
@@ -116,20 +118,25 @@ def crop_rot_img_wo_border(image, crop_width, crop_height, crop_center_x, crop_c
     result = rotate_image(cropped_image, angle, crop_width, crop_height)
     return result
 
-def generate_map_tiles(raw_map_path:str, stride_ratio_str:str, patches_save_dir:str, rotation_angles=[0]):
+def generate_map_tiles(raw_map_path:str, df:pd.DataFrame, stride_ratio_str:str, patches_save_dir:str, rotation_angles=[0]):
 
     # 飞行高度
     # flight_height = 150
     # flight_height = int(patches_save_dir.split('_')[-1])
 
     #TODO: 
-    target_w = 480                  # TODO: set the width corresponding to the shape of your query image
+    target_w = 540                  # TODO: set the width corresponding to the shape of your query image
     # target_h = 360
     # w_h_factor = target_h / target_w
     # map_tile_width_meters = 300     # TODO: set the meters in width the you want to crop
 
     # 这是指地图切片的宽度对应到地面上是多长（米为单位）
     # map_tile_heigth_meters = map_tile_width_meters * w_h_factor
+
+    LT_lon = float(df['LT_lon_map'].iloc[0])
+    LT_lat = float(df['LT_lat_map'].iloc[0])
+    RB_lon = float(df['RB_lon_map'].iloc[0]) # right bottom 右下
+    RB_lat = float(df['RB_lat_map'].iloc[0])
 
 
     for flight_height in flight_heights:
@@ -154,12 +161,12 @@ def generate_map_tiles(raw_map_path:str, stride_ratio_str:str, patches_save_dir:
         map_w = map_data.shape[1]   # 大地图像素宽度
         map_h = map_data.shape[0]   # 大地图像素高度
 
-        gnss_data = raw_map_path.split(slash)[-1]
+        # gnss_data = raw_map_path.split(slash)[-1]
 
-        LT_lon = float(gnss_data.split('@')[2]) # left top 左上
-        LT_lat = float(gnss_data.split('@')[3])
-        RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
-        RB_lat = float(gnss_data.split('@')[5])
+        # LT_lon = float(gnss_data.split('@')[2]) # left top 左上
+        # LT_lat = float(gnss_data.split('@')[3])
+        # RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
+        # RB_lat = float(gnss_data.split('@')[5])
 
         lon_res = (RB_lon - LT_lon) / map_w     # 大地图的纬线方向每像素代表的经度跨度
         lat_res = (RB_lat - LT_lat) / map_h     # 大地图的经线方向每像素代表的纬度跨度
@@ -187,7 +194,7 @@ def generate_map_tiles(raw_map_path:str, stride_ratio_str:str, patches_save_dir:
         iter_h = int((map_h - img_h) / stride_y) + 1
         iter_total = iter_w * iter_h * len(rotation_angles)
 
-        with trange(iter_total, desc=gnss_data) as tbar:
+        with trange(iter_total, desc=os.path.basename(raw_map_path)) as tbar:
             i = 0
             loc_x = 0
             # LINK: https://blog.csdn.net/winter2121/article/details/111356587
@@ -223,31 +230,17 @@ def generate_map_tiles(raw_map_path:str, stride_ratio_str:str, patches_save_dir:
                     # alpha = 90
 
                     alpha = rotation_angles[0]
-                    # filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{alpha:.2f}@{loc_x}@{loc_y}@.png'
-                    if iter_w * iter_h > 4000:
-                        rotation_angles_tmp = [0]
-                    else:
-                        rotation_angles_tmp = rotation_angles
-                    for alpha_idx in range(len(rotation_angles_tmp)):
-                        alpha = rotation_angles_tmp[alpha_idx]
 
-                        # if alpha != 0 and alpha != 0.0:
-                        #     filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{alpha:.2f}@{loc_x}@{loc_y}@{alpha}.png'
+                    filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{alpha:.2f}@{loc_x}@{loc_y}@.png'
 
-                        filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{alpha}@{loc_x}@{loc_y}@.png'
 
-                        save_file_path = os.path.join(f'{patches_save_dir_height}',filename)
-
-                            # filename = f'@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
-
-                        if os.path.exists(save_file_path):
-                            i += 1
-                            tbar.set_postfix(rate=i/iter_total)
-                            tbar.update()
-                            # loc_y = loc_y + stride_y
-                            continue
-
-                        img_seg_pad = crop_rot_img_wo_border(map_data, img_w, img_h, crop_center_x, crop_center_y, alpha)
+                    save_file_path = os.path.join(f'{patches_save_dir_height}',filename)
+                    if os.path.exists(save_file_path):
+                        i += 1
+                        tbar.set_postfix(rate=i/iter_total)
+                        tbar.update()
+                        loc_y = loc_y + stride_y
+                        continue
                     # filename = f'@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
                     # @角度@高度@utm_e@utm_n@.png
 
@@ -257,34 +250,35 @@ def generate_map_tiles(raw_map_path:str, stride_ratio_str:str, patches_save_dir:
                     #     tbar.update()
                     #     continue
 
-                    # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
+                    img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
                     # print(img_seg_pad.shape)
 
                     # img_seg_pad = crop_rot_img_wo_border(map_data, img_w, img_h, crop_center_x, crop_center_y, rotation_angle)
 
-                        if img_seg_pad is None:
-                            pass
-                        else:
-                            # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
-                            img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+                    if img_seg_pad is None:
+                        pass
+                    else:
+                        # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
+                        # img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+                        img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LANCZOS4)
 
-                            # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
-                            # data_line.to_csv(csv_path, mode='a', index=False, header=False)
-                            
-                            # 决定是否要旋转
-                            # img_seg_pad = numpy.clip(numpy.rot90(img_seg_pad, 1), 0, 255).astype(numpy.uint8)  # rotate if necessary
+                        # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
+                        # data_line.to_csv(csv_path, mode='a', index=False, header=False)
+                        
+                        # 决定是否要旋转
+                        # img_seg_pad = numpy.clip(numpy.rot90(img_seg_pad, 1), 0, 255).astype(numpy.uint8)  # rotate if necessary
 
-                            # cv2.imwrite(patches_save_dir + '@map%s.png' % (
-                            #         '@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'), img_seg_pad)
-                            # print('%s.png' % ('@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'))
+                        # cv2.imwrite(patches_save_dir + '@map%s.png' % (
+                        #         '@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'), img_seg_pad)
+                        # print('%s.png' % ('@' + LT_cur_lon + '@' + LT_cur_lat + '@' + RB_cur_lon + '@' + RB_cur_lat + '@'))
 
-                            cv2.imwrite(save_file_path, img_seg_pad)
-                            # cv2.imshow('image',img_seg_pad)
-                                    
+                        cv2.imwrite(save_file_path, img_seg_pad)
+                        # cv2.imshow('image',img_seg_pad)
+                                
 
-                            i += 1
-                            tbar.set_postfix(rate=i/iter_total)
-                            tbar.update()
+                        i += 1
+                        tbar.set_postfix(rate=i/iter_total)
+                        tbar.update()
 
 
                     loc_y = loc_y + stride_y
@@ -304,8 +298,11 @@ if __name__ == '__main__':
     basedir = r'F:\.cache\QDRaw'
     basedir = r'/root/workspace/crikff47v38s73fnfgdg/maps/QDRaw'
     cities_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/Cities'
+
     basedir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/QDRaw'
-    cities_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/Cities'
+    # cities_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/Cities_old'
+    basedir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/UAV_VisLoc_dataset'
+
 
     map_dirs = {
         # "2012": os.path.join(basedir, '201209', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
@@ -314,20 +311,28 @@ if __name__ == '__main__':
         # "2019": os.path.join(basedir, '201911', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
         # "2020": os.path.join(basedir, '202002', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
         # "2022": os.path.join(basedir, '202202', '@rot90map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
-        "ct01": os.path.join(cities_dir, 'ct01', '2022', '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
-        "ct02": os.path.join(cities_dir, 'ct02', '2022', '@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
+        # "ct01": os.path.join(cities_dir, 'ct01', '2022', '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
+        # "ct02": os.path.join(cities_dir, 'ct02', '2022', '@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
+        # "2022": os.path.join(basedir, '202202', '@map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
+        # "2013": os.path.join(basedir, '201310', '@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
+        # "VL07": os.path.join(basedir, '07', 'satellite07.tif'),
+        "VL08": os.path.join(basedir, '08', 'satellite08.tif'),
+        "VL09": os.path.join(basedir, '09', 'satellite09.tif'),
     }
     # train
     if stage == "train":
         stride_ratios = {
             # "2012": 3,
-            # "2013": 4,  
+            # "2013": 5,  
             # "2017": 4,  
             # "2019": 4,  
             # "2020": 5,  
             # "2022": 5,
-            "ct01": 5,
-            "ct02": 5,
+            # "ct01": 5,
+            # "ct02": 5,
+            # "VL07": 5,
+            "VL08": 5,
+            "VL09": 5,
         }
 
     patches_save_root_dir = r'/root/workspace/maps/HE-100-700'
@@ -335,11 +340,13 @@ if __name__ == '__main__':
     patches_save_root_dir = r'F:\.cache\HE-100-700'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HE-100-700'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-100-700-seperate-height'
-    patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-100-700-seperate-height-add-rot'
-    patches_save_root_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/HC-100-700-seperate-height-add-rot'
+    patches_save_root_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/HC-100-700-seperate-height'
+    patches_save_root_dir = r'/root/workspace/ctvsuas7v38s73eo9qlg/maps/HC-100-700-seperate-height'
 
-    alpha_list = range(0, 360, 30)
-    # alpha_list = [0]
+    csv_path = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/UAV_VisLoc_dataset/satellite_coordinates_range.csv'
+
+    # alpha_list = range(0, 360, 30)
+    alpha_list = [0]
 
 
     total_iterations = len(map_dirs)*len(flight_heights)  # Total iterations  
@@ -354,6 +361,10 @@ if __name__ == '__main__':
         # header.to_csv(csv_path, mode='w', index=False, header=True)
         
         # save_dir_year = os.path.join(patches_save_root_dir, 'Images', f'{year}')
+        dataframe = pd.read_csv(csv_path, encoding='utf-8')
+
+        map_name = os.path.basename(map_dir)
+        dataframe_current = dataframe[dataframe['mapname'] == map_name]
         
         save_dir_year = os.path.join(patches_save_root_dir, f'{year}')
 
@@ -378,7 +389,8 @@ if __name__ == '__main__':
 
 
 
-        generate_map_tiles(map_dir, stride_ratio_str, patches_save_dir, alpha_list)
+
+        generate_map_tiles(map_dir, dataframe_current, stride_ratio_str, patches_save_dir, alpha_list)
     
         # current_iteration += 1  # Increment the progress counter  
 

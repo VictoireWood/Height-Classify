@@ -2,6 +2,8 @@ import PIL.Image
 import torch
 from PIL import Image, ImageFile
 import numpy as np
+import pandas as pd
+import os
 def move_to_device(optimizer, device):
     for state in optimizer.state.values():
         for k, v in state.items():
@@ -97,3 +99,61 @@ def tensor_to_image(tensor:torch.Tensor) -> PIL.Image.Image:
 
     # 现在 image 是一个 PIL.Image.Image 类型的变量
     return image
+
+
+def get_utm_from_path(image_path: str):
+    # info = image_path.split('/')[-1].split('@')
+    info = image_path.split('@')
+    # heights = np.array([info[-4] for info in info_list]).astype(np.float16)
+    # heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
+
+    # utm = (float(info[-3]), float(info[-2]))
+    if len(info) == 1:  # 对应uav_visloc的测试图像
+        import utm
+        filename = os.path.basename(image_path)
+        drone_path = os.path.dirname(image_path)
+        base_path = os.path.dirname(drone_path)
+        csv_name = os.path.basename(base_path) + '.csv'
+        csv_path = os.path.join(base_path, csv_name)
+        dataframe = pd.read_csv(csv_path, encoding='utf-8')
+        dataframe_current = dataframe[dataframe['filename'] == filename]
+        lat = float(dataframe_current['lat'].iloc[0])
+        lon = float(dataframe_current['lon'].iloc[0])
+        utm_e, utm_n, _, _ = utm.from_latlon(latitude=lat, longitude=lon)
+        utm = (utm_e, utm_n)
+    
+    elif len(info[-1]) > 4:   # 对应青岛的测试图像
+        import utm
+        latlon = (float(info[3]), float(info[2]))
+        utm_e, utm_n, _, _ = utm.from_latlon(latitude=latlon[0], longitude=latlon[1])
+        utm = (utm_e, utm_n)
+    else:
+        utm = (float(info[-3]), float(info[-2]))
+    return utm
+
+def get_utms_from_paths(images_paths: list[str]):
+
+    # images_metadatas = [p.split("@") for p in images_paths]
+    # heights = [m[2] for m in images_metadatas]
+    # # heights = np.array(heights).astype(np.float64)
+    # del images_metadatas
+
+    info_list = [image_path.split('/')[-1].split('@') for image_path in images_paths]
+    # heights = np.array([info[-4] for info in info_list]).astype(np.float16)
+    # heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
+
+    utms = []
+    for info in info_list:
+        if len(info[-1]) > 4:
+            import utm
+            latlon = (float(info[3]), float(info[2]))
+            utm_e, utm_n, _, _ = utm.from_latlon(latitude=latlon[0], longitude=latlon[1])
+            utms.append((utm_e, utm_n))
+        else:
+            utms.append((float(info[-3]), float(info[-2])))
+    return utms
+
+    # utms = [(float(info[-3]), float(info[-2])) for info in info_list]
+    # # filename = f'@{year}@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
+    # return utms
+

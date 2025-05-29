@@ -4,7 +4,9 @@ import pandas as pd
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 import torch
+import torch.utils
 from torch.utils.data import Dataset
+import torch.utils.data
 import torchvision.transforms as T
 from glob import glob
 import numpy as np
@@ -56,9 +58,9 @@ else:
 # real_BASE_PATH = '/root/workspace/maps/HE_Test/'
 # TEST_PATH = '/root/workspace/maps/HE-100-700-test/'
 
-if not Path(BASE_PATH).exists():
-    raise FileNotFoundError(
-        'BASE_PATH is hardcoded, please adjust to point to gsv_cities')
+# if not Path(BASE_PATH).exists():
+#     raise FileNotFoundError(
+#         'BASE_PATH is hardcoded, please adjust to point to gsv_cities')
 
 default_transform = T.Compose([
     T.Resize(size, antialias=True),
@@ -73,7 +75,6 @@ basic_transform = T.Compose([
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
-
 
 def get__class_id__group_id(height, M, N):
     """Return class_id and group_id for a given point.
@@ -97,7 +98,29 @@ def get_heights_from_paths(images_paths: list[str]):
     info_list = [image_path.split('/')[-1].split('@') for image_path in images_paths]
     # heights = np.array([info[-4] for info in info_list]).astype(np.float16)
     # heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
-    heights = [float(info[2]) for info in info_list]
+    # heights = [float(info[3]) for info in info_list]    # NOTE 给VPR切的图像是filename = f'@{year}@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'，应该是第三个
+
+    # heights = [float(info[2]) for info in info_list]
+    heights = []
+    for info in info_list:
+        if len(info[-1]) > 4:
+            heights.append((float(info[4])))
+        else:
+            heights.append(float(info[2]))
+    return heights
+
+def get_heights_from_qingdao_paths(images_paths: list[str]):
+
+    # images_metadatas = [p.split("@") for p in images_paths]
+    # heights = [m[2] for m in images_metadatas]
+    # # heights = np.array(heights).astype(np.float64)
+    # del images_metadatas
+
+    info_list = [image_path.split('/')[-1].split('@') for image_path in images_paths]
+    # heights = np.array([info[-4] for info in info_list]).astype(np.float16)
+    # heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
+    heights = [float(info[4]) for info in info_list]
+    # heights = [float(info[3]) for info in info_list]    # NOTE 给VPR切的图像是filename = f'@{year}@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'，应该是第三个
     return heights
 
 class HCDataset(Dataset):
@@ -192,7 +215,7 @@ class HCDataset(Dataset):
         #     flip_chance = 0.5
         #     rand_transform = T.Compose([
         #         T.CenterCrop((crop_h, crop_w)),
-        #         T.Resize((h, w)),
+        #         T.Resize((h, w), resize()),
         #     ])
         #     height_new = height/real_scale
         #     image_new = rand_transform(image)
@@ -467,7 +490,7 @@ def initialize(dataset_folder, train_dataset_folders, dataset_name, M, N, min_im
     classes_per_group = [list(c) for c in classes_per_group.values()]   # classes_per_group.values()的格式：dict_values([{0, 20}, {1, 2}])；list(c)的格式：[0, 20], classes_per_group格式：[[0, 20], [1, 2]]
     classes_per_group= [sorted(sublist) for sublist in classes_per_group]   # group的sublist中，class的数值从小到大排序
     images_per_class_per_group = [c for c in images_per_class_per_group.values()]   # NOTE images_per_class_per_group 格式：[{0: ['power.png']}, {1: ['pwr.png']}, {2: ['1.png', '2.png'], 1: ['4.png', '5.png']}]
-    images_per_class_per_group = [{k: v for k, v in sorted(subdict.items())} for subdict in images_per_class_per_group]
+    images_per_class_per_group = [{k: v for k, v in sorted(subdict.items())} for subdict in images_per_class_per_group] # [{100: ['/ct02/0100/@ct02@100.00@00@0.00@0@0@.png', ...], 200: [...], 300: [...], 400: [...], 500: [...], 600: [...]}, {450: [...], 550: [...], 650: [...], 150: [...], 250: [...], 350: [...]}]
 
     images_num_per_class_per_group = []
     ends_per_group = []
@@ -585,7 +608,7 @@ class TestDataset(torch.utils.data.Dataset):
         self.group_id = [id[1] for id in class_id_group_id]
 
         self.normalize = T.Compose([
-            T.Resize(image_size),
+            T.Resize(image_size, antialias=True),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
@@ -606,7 +629,7 @@ class TestDataset(torch.utils.data.Dataset):
         
         # if isinstance(image, tuple):
         #     image = torch.stack(image, dim=0)
-        return image, self.class_id[index], self.heights[index]
+        return image, self.class_id[index], self.heights[index], image_path
 
     def __len__(self):
         return len(self.images_paths)
@@ -665,36 +688,23 @@ class realHCDataset_N(Dataset):
         if self.fft:
             image = tensor_fft_3D(image, self.fft_log_base)
         
-        return image, self.class_id[index], self.heights[index]
+        return image, self.class_id[index], self.heights[index], image_path
     
     def __len__(self):
         return len(self.images_paths)
-    
 
-class TestDataset_csv(torch.utils.data.Dataset):
-    def __init__(self, test_folder, test_datasets, M=10, N=5, image_size=256):
+
+class TestDatasetNew(torch.utils.data.Dataset):
+    def __init__(self, test_folder, M=10, N=5, image_size=256):
         super().__init__()
         logging.debug(f"Searching test images in {test_folder}")
 
         # images_paths = sorted(glob(f"{test_folder}/**/*.jpg", recursive=True))    # ORIGION
-        images_paths = []
-        for dataset in test_datasets:
-            images_paths_current_folder = sorted(glob(f"{test_folder}/{dataset}**/*.png", recursive=True))    # EDIT
-            images_paths.extend(images_paths_current_folder)
+        images_paths = sorted(glob(f"{test_folder}/**/*.png", recursive=True))    # EDIT
 
         logging.debug(f"Found {len(images_paths)} images")
 
-        header = pd.DataFrame(columns=['query_path', 'query_height', 'pred_height', 'query_utm', 'pred_utm'])
-
-        self.heights = get_heights_from_paths(images_paths)
-
-        for i in range(len(self.heights)):
-            query_path = images_paths[i]
-            query_height = self.heights[i]
-            pred_height = query_height
-            query_utm = (query_path)
-            pred_utm = query_utm
-            header.loc[i] = [query_path, query_height, pred_height, query_utm, pred_utm]
+        self.heights = get_heights_from_qingdao_paths(images_paths)
 
         class_id_group_id = [get__class_id__group_id(h, M, N) for h in self.heights]    # 得到(class_id, group_id)
         self.images_paths = images_paths
@@ -703,7 +713,7 @@ class TestDataset_csv(torch.utils.data.Dataset):
         self.group_id = [id[1] for id in class_id_group_id]
 
         self.normalize = T.Compose([
-            T.Resize(image_size),
+            T.Resize(image_size, antialias=True),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
@@ -724,7 +734,57 @@ class TestDataset_csv(torch.utils.data.Dataset):
         
         # if isinstance(image, tuple):
         #     image = torch.stack(image, dim=0)
-        return image, self.class_id[index], self.heights[index]
+        return image, self.class_id[index], self.heights[index], image_path
+
+    def __len__(self):
+        return len(self.images_paths)
+    
+
+class visloc_test(torch.utils.data.Dataset):
+    def __init__(self, test_folder, number, M=10, N=5, image_size=256):
+        super().__init__()
+        logging.debug(f"Searching test images in {test_folder}")
+        csv_path = os.path.join(test_folder, f'{number:02d}.csv')
+        df = pd.read_csv(csv_path)
+        images_paths = df['filename'].tolist()
+        images_paths = [os.path.join(test_folder, 'drone', image_path) for image_path in images_paths]
+
+        # images_paths = sorted(glob(f"{test_folder}/**/*.jpg", recursive=True))    # ORIGION
+        # images_paths = sorted(glob(f"{test_folder}/**/*.JPG", recursive=True))    # EDIT
+
+        logging.debug(f"Found {len(images_paths)} images")
+
+        self.heights = df['height'].tolist()
+
+        class_id_group_id = [get__class_id__group_id(h, M, N) for h in self.heights]    # 得到(class_id, group_id)
+        self.images_paths = images_paths
+        self.class_centers = [id[0] + M // 2 for id in class_id_group_id]
+        self.class_id = [id[0] for id in class_id_group_id]
+        self.group_id = [id[1] for id in class_id_group_id]
+
+        self.normalize = T.Compose([
+            T.Resize(image_size, antialias=True),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        self.fft = args.fft
+        self.fft_log_base = args.fft_log_base
+
+    def __getitem__(self, index):
+        image_path = self.images_paths[index]
+        # class_id = self.class_id[index]
+
+        pil_image = Image.open(image_path).convert('RGB')
+        # pil_image = T.functional.resize(pil_image, self.shapes[index])
+        image = self.normalize(pil_image)
+
+        if self.fft:
+            image = tensor_fft_3D(image, self.fft_log_base)
+        
+        # if isinstance(image, tuple):
+        #     image = torch.stack(image, dim=0)
+        return image, self.class_id[index], self.heights[index], image_path
 
     def __len__(self):
         return len(self.images_paths)

@@ -24,8 +24,8 @@ from dataloaders.HCDataset import realHCDataset_N, InfiniteDataLoader, HCDataset
 from models import helper, regression
 import commons
 
-from utils.checkpoint import save_checkpoint_with_groups, resume_model_with_classifiers, resume_train_with_groups
-from utils.inference import inference_with_groups
+from utils.checkpoint import save_checkpoint_with_groups, resume_model_with_classifiers, resume_train_with_groups, resume_train_with_groups_all, save_checkpoint_with_groups_best_val
+from utils.inference import inference_with_groups, inference_with_groups_with_val
 from utils.losses import CoLoss
 from utils.utils import move_to_device
 from models.classifiers import AAMC
@@ -55,7 +55,7 @@ train_dataset_folders = ['ct02']
 # test_datasets = ['real_photo', '2022', '2020']
 # test_datasets = ['2022', '2020']
 test_datasets = train_dataset_folders
-
+test_datasets = ['real_photo']
 
 if args.dataset_name == 'ct01':
     train_dataset_folders = ['ct01']
@@ -63,7 +63,11 @@ if args.dataset_name == 'ct01':
 elif args.dataset_name == 'ct02':
     train_dataset_folders = ['ct02']
     test_datasets = ['ct02']
+elif args.dataset_name == '2022':
+    train_dataset_folders = ['2022']
+    test_datasets = ['real_photo']
 
+test_dataset = args.test_set_list
 
 if 'dinov2' in args.backbone.lower():
     backbone_info = {
@@ -108,6 +112,9 @@ commons.setup_logging(args.save_dir, console="info")
 logging.info(" ".join(sys.argv))
 logging.info(f"Arguments: {args}")
 logging.info(f"The outputs are being saved in {args.save_dir}")
+
+logging.info(f"train_dataset_folders: {train_dataset_folders}")
+logging.info(f"test_datasets_folders: {test_datasets}")
 
 #### Dataset & Dataloader
 # if args.train_photos:
@@ -184,21 +191,25 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=args.schedu
 if args.resume_model is not None:
     # model, classifier = resume_model(model, classifier)
     model, classifiers = resume_model_with_classifiers(model, classifiers)
-
-if args.resume_train is not None:
+elif args.resume_train is not None:
     # model, optimizer, best_loss, start_epoch_num = resume_train_with_params(model, optimizer, scheduler)
 
-    model, model_optimizer, classifiers, classifiers_optimizers, best_train_loss, start_epoch_num = \
-        resume_train_with_groups(args.save_dir, model, optimizer, classifiers, classifiers_optimizers)
+    # model, model_optimizer, classifiers, classifiers_optimizers, best_train_loss, start_epoch_num = \
+    #     resume_train_with_groups(args.save_dir, model, optimizer, classifiers, classifiers_optimizers)
+    
+    model, model_optimizer, classifiers, classifiers_optimizers, best_train_loss, start_epoch_num, scheduler, best_val_lr = \
+        resume_train_with_groups_all(args.save_dir, model, optimizer, classifiers, classifiers_optimizers, scheduler)
+    
     epoch_num = start_epoch_num - 1
     best_loss = best_train_loss
+    best_val = best_val_lr
     logging.info(f"Resuming from epoch {start_epoch_num} with best train loss {best_train_loss:.2f} " +
                  f"from checkpoint {args.resume_train}")
 else:
     best_valid_acc = 0
     start_epoch_num = 0
     best_loss = float('inf')
-
+    best_val = 0.0
 
 
 ### Train&Loss
@@ -206,9 +217,11 @@ else:
 cross_entropy_loss = torch.nn.CrossEntropyLoss()    #NOTE: 交叉熵损失，应该是softmax通用的loss形式
 
 
+# 训练模型
+
 torch.cuda.empty_cache()
 
-correct_class_recall, threshold_recall = inference_with_groups(args=args, model=model, classifiers=classifiers, test_dl=test_dl, groups=groups, num_test_images=test_img_num)
+correct_class_recall, threshold_recall, val_lr = inference_with_groups_with_val(args=args, model=model, classifiers=classifiers, test_dl=test_dl, groups=groups, num_test_images=test_img_num)
 
 logging.info(f"Test LR: {correct_class_recall}, {threshold_recall}")
 print("Training complete.")

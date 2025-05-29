@@ -36,6 +36,7 @@ def parse_arguments():
     # parser.add_argument('--lambda1', type=float, default= 0.3, help='图像变换后估计损失的权重')
     # parser.add_argument('--lambda2', type=float, default= 0.2, help='一致性损失的权重')
 
+    parser.add_argument('--classifier', type=str, default='QAMC', help='QAMC or LMCC or AAMC or LinearLayer', choices=['QAMC', 'LMCC', 'AAMC', 'LinearLayer'])
     parser.add_argument('--aamc_m', type=float, default=0.2, help='margin m in LMCC or AAMC layer')   # NOTE 原始的是LMCC
     parser.add_argument('--aamc_s', type=float, default=100.0, help='margin s in LMCC or AAMC layer')   # NOTE 原始的是LMCC
 
@@ -79,8 +80,8 @@ def parse_arguments():
     # Paths parameters
     parser.add_argument("--exp_name", type=str, default="default",
                         help="name of experiment. The logs will be saved in a folder with such name")
-    parser.add_argument("--dataset_name", type=str, default="qd3.5x5",
-                        choices=["qd3.5x5", "UAV-VisLoc", "ct01", "ct02", "2022"], 
+    parser.add_argument("--dataset_name", nargs="+", type=str, default="qd3.5x5",
+                        choices=["qd3.5x5", "UAV-VisLoc", "ct01", "ct02", "2022", "2013", "SUES-200", "qd_train", "qd_train1", "qd_train2", 'VL08', 'VL09', '202501'], 
                         help="_")   # REVIEW
                         # choices=["sf_xl", "tokyo247", "pitts30k", "pitts250k"], help="_") # ANCHOR
     parser.add_argument("--test_set_list", nargs='+', type=str, default=None,

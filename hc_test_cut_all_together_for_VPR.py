@@ -30,7 +30,7 @@ h_max = 700
 h_min = 100
 class_interval = 50
 
-flight_test_range = range(h_min, h_max+1, class_interval) # 高度范围，5米一取，stop需要取大一点，否则range到不了h_max
+flight_test_range = range(h_min, h_max + 1, class_interval) # 高度范围，5米一取，stop需要取大一点，否则range到不了h_max
 class_number = len(flight_test_range) - 1   # 相当于有13个分割线
 times = 25
 
@@ -48,7 +48,7 @@ print(flight_heights)
 print(len(flight_heights))
 
 
-total_iterations = 400
+total_iterations = 500
 
 # TODO: 
 # 分辨率
@@ -244,7 +244,7 @@ def generate_map_tiles(raw_map_path:str, patches_save_dir:str, rotation_angles=[
 
             # filename = f'@{year}@{flight_height:.2f}@{flight_class:02d}@{rotation_angle:.2f}@{loc_x}@{loc_y}@{CT_utm_e}@{CT_utm_n}@{rotation_angle}.png'
 
-            filename = f'@{year}@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}.png'
+            filename = f'@{year}@{flight_height}@{rotation_angle}@{CT_utm_e}@{CT_utm_n}@.png'
             # filename = f'@{rotation_angle}@{flight_height}@{CT_utm_e}@{CT_utm_n}@.png'
             # @角度@高度@utm_e@utm_n@.png
 
@@ -264,7 +264,8 @@ def generate_map_tiles(raw_map_path:str, patches_save_dir:str, rotation_angles=[
                 continue
             else:
                 # img_seg_pad = map_data[loc_y:loc_y + img_h, loc_x:loc_x + img_w]
-                img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+                # img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
+                img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LANCZOS4)
 
                 # data_line = pd.DataFrame([[year, gnss_data, flight_height, flight_class, alpha, loc_x, loc_y]], columns=['year', 'origin_img', 'flight_height', 'flight_class', 'rotation_angle','loc_x', 'loc_y'])
                 # data_line.to_csv(csv_path, mode='a', index=False, header=False)
@@ -308,6 +309,8 @@ if __name__ == '__main__':
 
     cities_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/Cities'
 
+    cities_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/Cities'
+
     # map_dirs = {
     #     "2012": rf"{basedir}201209{slash}@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",
     #     "2013": rf"{basedir}201310{slash}@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
@@ -321,10 +324,10 @@ if __name__ == '__main__':
         # "2013": os.path.join(basedir, '201310', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
         # "2017": os.path.join(basedir, '201710', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
         # "2019": os.path.join(basedir, '201911', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),
-        "2020": os.path.join(basedir, '202002', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
-        "2022": os.path.join(basedir, '202202', '@rot90map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
-        # "ct01": os.path.join(cities_dir, '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
-        # "ct02": os.path.join(cities_dir, '@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
+        # "2020": os.path.join(basedir, '202002', '@rot90map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg'),  
+        # "2022": os.path.join(basedir, '202202', '@rot90map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg'), 
+        "ct01": os.path.join(cities_dir, 'ct01', '2022', '@map@116.35551452636719@40.09815882135811@116.44632339477539@40.15118932709900@.jpg'),
+        "ct02": os.path.join(cities_dir, 'ct02', '2022', '@map@121.34485244750977@31.08564938117820@121.43737792968750@31.12900748947799@.jpg'),
     }
 
     patches_save_root_dir = r'/root/workspace/maps/HE-100-700-test'
@@ -333,14 +336,16 @@ if __name__ == '__main__':
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-100-700-test'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-cities-test'
     patches_save_root_dir = r'/root/workspace/crikff47v38s73fnfgdg/maps/HC-qingdao-test-rotate'
+
+    patches_save_root_dir = r'/root/workspace/ctf53sc7v38s73e0mksg/maps/HC-cities-test'
     
 
     # alpha_list = range(0, 360, 30)
     alpha_list = [0]
 
 
-    total_iterations = len(map_dirs)*len(flight_heights)  # Total iterations  
-    current_iteration = 0  # To keep track of progress  
+    # total_iterations = len(map_dirs)*len(flight_heights)  # Total iterations  
+    # current_iteration = 0  # To keep track of progress  
     
     for year, map_dir in map_dirs.items():
 

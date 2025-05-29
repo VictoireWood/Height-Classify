@@ -115,7 +115,7 @@ if 'real_photo' in test_datasets:
     test_datasets_load.remove('real_photo')
     test_dataset_list.append(real_photo_dataset)
 if len(test_datasets_load) != 0:
-    fake_photo_dataset = testHCDataset(base_path=args.test_set_path, foldernames=test_datasets_load, random_sample_from_each_place=False,transform=test_transform)
+    fake_photo_dataset = testHCDataset(base_path=args.test_set_path, random_sample_from_each_place=False,transform=test_transform)
     test_dataset_list.append(fake_photo_dataset)
 if len(test_dataset_list) > 1:
     test_dataset = ConcatDataset(test_dataset_list)
