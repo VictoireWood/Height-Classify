@@ -20,6 +20,7 @@ from collections import defaultdict
 import bisect
 from hc_db_cut import h_max, h_min, class_interval, classes_num
 
+import math
 
 size = (360, 480)
 
@@ -87,6 +88,30 @@ def get__class_id__group_id(height, M, N):
     # group_id goes from (0, 0) to (N, N)
     group_id = (class_id % (M * N) // M)
     return class_id, group_id
+
+# def get__class_id__group_id(height, M=1, N=1, H0=100, delta0=20, r=1.1):
+#     """
+#     Return class_id and group_id for a given height using exponential/geometric widening.
+    
+#     Parameters:
+#         height : float, the altitude to classify
+#         H0     : float, starting altitude (lower bound)
+#         delta0 : float, initial interval size
+#         r      : float, geometric ratio (>1)
+#         N      : int, number of groups (default=1)
+    
+#     Returns:
+#         class_id : int, the bin index
+#         group_id : int, the group index
+#     """
+#     if height < H0:
+#         class_id = -1  # 低于起始高度，标记为无效
+#     else:
+#         val = 1 + (height - H0) * (r - 1) / delta0
+#         class_id = math.floor(math.log(val, r)) if val > 0 else 0
+    
+#     group_id = class_id % N if class_id != -1 else -1
+#     return class_id, group_id
 
 def get_heights_from_paths(images_paths: list[str]):
 
@@ -537,6 +562,25 @@ class HCDataset_shN(Dataset):
         self.classes_ids = classes_ids  # classes_ids是一个list，格式：[0, 20]，代表当前group中的所有class的id
         self.images_per_class = images_per_class
         self.class_centers = [cl_id + M // 2 for cl_id in self.classes_ids]
+        # # -------------------------- 修改 class_centers 定义 --------------------------
+        # # 在 __init__ 的 class_centers 定义处
+        # # 几何区间参数（与 get__class_id__group_id 一致）
+        # H0 = 100
+        # delta0 = 20
+        # r = 1.1
+
+        # self.class_centers = []
+        # for cl_id in self.classes_ids:
+        #     if cl_id == -1:
+        #         self.class_centers.append(-1.0)
+        #     else:
+        #         lower = H0 + delta0 * (r**cl_id - 1) / (r - 1)
+        #         upper = H0 + delta0 * (r**(cl_id + 1) - 1) / (r - 1)
+        #         center = (lower + upper) / 2
+        #         self.class_centers.append(round(center, 2))
+        # logging.info(f'class_centers: {self.class_centers}')
+        # logging.info(f'classes_ids: {self.classes_ids}')
+        # # ---------------------------------------------------------------------------
         self.classes_num_total = len(classes_ids)
 
         self.ends = ends
@@ -606,6 +650,23 @@ class TestDataset(torch.utils.data.Dataset):
         self.class_centers = [id[0] + M // 2 for id in class_id_group_id]
         self.class_id = [id[0] for id in class_id_group_id]
         self.group_id = [id[1] for id in class_id_group_id]
+        # # -------------------------- 修改 class_centers 定义 --------------------------
+        # # 在 __init__ 的 class_centers 定义处
+        # # 几何区间参数（与 get__class_id__group_id 一致）
+        # H0 = 100
+        # delta0 = 20
+        # r = 1.1
+
+        # self.class_centers = []
+        # for cl_id in self.class_id:
+        #     if cl_id == -1:
+        #         self.class_centers.append(-1.0)
+        #     else:
+        #         lower = H0 + delta0 * (r**cl_id - 1) / (r - 1)
+        #         upper = H0 + delta0 * (r**(cl_id + 1) - 1) / (r - 1)
+        #         center = (lower + upper) / 2
+        #         self.class_centers.append(round(center, 2))
+        # # ---------------------------------------------------------------------------
 
         self.normalize = T.Compose([
             T.Resize(image_size, antialias=True),
@@ -711,6 +772,23 @@ class TestDatasetNew(torch.utils.data.Dataset):
         self.class_centers = [id[0] + M // 2 for id in class_id_group_id]
         self.class_id = [id[0] for id in class_id_group_id]
         self.group_id = [id[1] for id in class_id_group_id]
+        # # -------------------------- 修改 class_centers 定义 --------------------------
+        # # 在 __init__ 的 class_centers 定义处
+        # # 几何区间参数（与 get__class_id__group_id 一致）
+        # H0 = 100
+        # delta0 = 20
+        # r = 1.1
+
+        # self.class_centers = []
+        # for cl_id in self.class_id:
+        #     if cl_id == -1:
+        #         self.class_centers.append(-1.0)
+        #     else:
+        #         lower = H0 + delta0 * (r**cl_id - 1) / (r - 1)
+        #         upper = H0 + delta0 * (r**(cl_id + 1) - 1) / (r - 1)
+        #         center = (lower + upper) / 2
+        #         self.class_centers.append(round(center, 2))
+        # # ---------------------------------------------------------------------------
 
         self.normalize = T.Compose([
             T.Resize(image_size, antialias=True),

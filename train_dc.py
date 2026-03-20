@@ -263,7 +263,8 @@ cross_entropy_loss = torch.nn.CrossEntropyLoss()    #NOTE: 交叉熵损失，应
 
 
 # 训练模型
-scaler = torch.GradScaler('cuda')
+# scaler = torch.GradScaler('cuda')
+scaler = torch.cuda.amp.GradScaler()  # NOTE: 自动混合精度训练
 for epoch_num in range(start_epoch_num, args.epochs_num):
     if optimizer.param_groups[0]['lr'] < 1e-6:
         logging.info('LR dropped below 1e-6, stopping training...')

@@ -18,6 +18,32 @@ import pandas as pd
 import random
 
 
+import numpy as np
+def add_gaussian_noise(image, sigma=0.01):
+    """给图像添加高斯噪声（uint8→float→uint8）"""
+    img_float = image.astype(np.float32) / 255.0
+    noise = np.random.normal(loc=0, scale=sigma, size=img_float.shape)
+    noisy_img_float = np.clip(img_float + noise, 0.0, 1.0)
+    return (noisy_img_float * 255).astype(np.uint8)
+
+def add_jpeg_artifacts(image, jpeg_quality=80):
+    """
+    给图像添加JPEG压缩伪影
+    :param image: 输入图像（uint8格式）
+    :param jpeg_quality: JPEG压缩质量（1-100，越小伪影越明显）
+    :return: 带压缩伪影的图像
+    """
+    # 确保质量参数在有效范围
+    jpeg_quality = max(1, min(100, jpeg_quality))
+    # JPEG压缩：encode → decode
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+    ret, buf = cv2.imencode(".jpg", image, encode_param)
+    if not ret:
+        raise RuntimeError("JPEG编码失败")
+    # 解码得到带伪影的图像
+    jpeg_img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    return jpeg_img
+
 
 
 def bool_based_on_probability(true_probability=0.5):
